@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
@@ -7,8 +9,37 @@ import { useState , useEffect } from "react";
 export default function Home() {
 
   const [postImg, setPostImg] = useState(); 
+  const [imgSeleccionada, setImgSeleccionada] = useState(null); 
 
+  useEffect(() =>{
+    verImage();
+  }, []); 
 
+  const verImage = async () => {
+    const response = await axios.get('http://localhost:3080/images/get')
+    setPostImg(response.data)
+  }
+
+  const seleccionar = (event) => {
+    setImgSeleccionada(event.target.files[0]);
+};
+ 
+
+  const uploadImage = async () => {
+    if(!imgSeleccionada){
+      alert("Selecciona una imagen")
+      return; 
+    }
+
+    const formData = new FormData(); 
+    formData.append("file", setImgSeleccionada); 
+
+    await axios.post('http//:localhost:3080/images/upload', formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    setImgSeleccionada(null); 
+    verImage()
+  }
   return (
     <div>
       <div className="mt-5 bg- bg-teal-400 h-20 content-center">
@@ -16,7 +47,8 @@ export default function Home() {
       </div>
       <div className="bg-white w-full justify-center content-center h-20">
         {/* <button><img src="../public/image.png"></img></button> */}
-        <input className=" w-96 bg-sky-100" type="file"></input>
+        <input className=" w-96 bg-sky-100" type="file" onChange={seleccionar}/>
+        <button onClick={uploadImage}>Subir imagen</button>
       </div>
       <div className="mt-20">
       <ImageList sx={{ width: '100%', height: '100%' }} cols={10} rowHeight={250}>
