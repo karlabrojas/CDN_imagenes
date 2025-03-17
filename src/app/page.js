@@ -1,97 +1,172 @@
 "use client";
-
-import React from "react";
-import ImageList from '@mui/material/ImageList';
-import ImageListItem from '@mui/material/ImageListItem';
+import React, { useState, useEffect } from "react";
+import ImageList from "@mui/material/ImageList";
+import ImageListItem from "@mui/material/ImageListItem";
 import Button from "@mui/material/Button";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import { styled } from '@mui/material/styles';
-
+import { styled } from "@mui/material/styles";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import FormControl from "@mui/material/FormControl";
+import Select from "@mui/material/Select";
 import axios from "axios";
-import { useState, useEffect } from "react";
+import Dialog from "@mui/material/Dialog";
+import DialogContent from "@mui/material/DialogContent";
+import AppBar from "@mui/material/AppBar";
+import IconButton from "@mui/material/IconButton";
+import CloseIcon from "@mui/icons-material/Close";
+import Toolbar from "@mui/material/Toolbar";
+import Slide from "@mui/material/Slide";
 
 export default function Home() {
-
   const [postImg, setPostImg] = useState([]);
-  const [imgSeleccionada, setImgSeleccionada] = useState(null);
+  const [imgSeleccionada, setImgSeleccionada] = useState("");
+  const [imgTamaño, setImgTamaño] = useState("medium");
+  const [carga, setCarga] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [selectedVariants, setSelectedVariants] = useState([]);
 
   useEffect(() => {
     verImage();
   }, []);
 
   const verImage = async () => {
-    const result = await axios.get('http://localhost:3080/images/get')
-    console.log("Imágenes obtenidas del backend:", result.data.images);
-    setPostImg(result.data.images)
-  }
+    try {
+      const result = await axios.get("http://localhost:3080/images/get");
+      console.log("Respuesta del backend:", result.data);
+      setPostImg(result.data.result.images || []);
+    } catch (error) {
+      console.error("Error obteniendo imágenes:", error);
+    } finally {
+      setCarga(false);
+    }
+  };
 
-  // const seleccionar = (event) => {
-  //   setImgSeleccionada(event.target.value);
-  // };
+  const seleccionar = (event) => {
+    setImgTamaño(event.target.value);
+  };
 
-
-  const uploadImage = async (postImg) => {
-    if (!postImg) {
+  const uploadImage = async (files) => {
+    if (!files) {
       alert("Selecciona una imagen");
       return;
     }
 
     const formData = new FormData();
-    formData.append("file", postImg[0])
+    formData.append("file", files[0]);
 
-    const response = await axios.post('http://localhost:3080/images/upload', formData)
-  }
+    await axios.post("http://localhost:3080/images/upload", formData);
+    verImage();
+  };
 
-  const VisuallyHiddenInput = styled('input')({
-    clip: 'rect(0 0 0 0)',
-    clipPath: 'inset(50%)',
+  const handleOpen = (variants) => {
+    if (!variants || variants.length === 0) return;
+    setSelectedVariants(variants);
+    const selectedVariant = variants.find((variant) => variant.includes(imgTamaño));
+    setImgSeleccionada(selectedVariant || variants[0]); // Si no encuentra la variante, usa la primera
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    if (open && selectedVariants.length > 0) {
+      const selectedVariant = selectedVariants.find((variant) => variant.includes(imgTamaño));
+      setImgSeleccionada(selectedVariant || selectedVariants[0]);
+    }
+  }, [imgTamaño]);
+
+  const handleClose = () => {
+    setOpen(false);
+    setImgSeleccionada(""); // Aseguramos que la imagen seleccionada se reinicie
+    setSelectedVariants([]); // También vaciamos la lista de variantes seleccionadas
+  };
+
+  const Transition = React.forwardRef(function Transition(props, ref) {
+    return <Slide direction="up" ref={ref} {...props} />;
+  });
+
+  const VisuallyHiddenInput = styled("input")({
+    clip: "rect(0 0 0 0)",
+    clipPath: "inset(50%)",
     height: 1,
-    overflow: 'hidden',
-    position: 'absolute',
+    overflow: "hidden",
+    position: "absolute",
     bottom: 0,
     left: 0,
-    whiteSpace: 'nowrap',
+    whiteSpace: "nowrap",
     width: 1,
   });
 
   return (
     <div>
-      <div className="mt-5 bg- bg-teal-400 h-20 content-center">
-        <h1 className="text-white text-center text-4xl font-semibold font-mono">Galeria de imagagenes -KBRR</h1>
+      <div className="mt-5 bg-teal-400 h-20 content-center">
+        <h1 className="text-white text-center text-4xl font-semibold font-mono">
+          Galería de imágenes - KBRR
+        </h1>
       </div>
-      <div className=" w-full flex justify-center content-center h-15 mt-10">
-        <Button
-          component="label"
-          role={undefined}
-          variant="contained"
-          tabIndex={-1}
-          startIcon={<CloudUploadIcon />}
-        >
+
+      <div className="w-full flex justify-center content-center h-15 mt-10">
+        <Button component="label" variant="contained" startIcon={<CloudUploadIcon />}>
           Subir imagen
-          <VisuallyHiddenInput
-            type="file"
-            onChange={(event) => uploadImage(event.target.files)}
-            multiple
-          />
+          <VisuallyHiddenInput type="file" onChange={(event) => uploadImage(event.target.files)} multiple />
         </Button>
       </div>
-      <div className="mt-20">
-        <ImageList sx={{ width: '100%', height: '100%' }} cols={10} rowHeight={250}>
-          {postImg.map((item) => (
-            <ImageListItem key={item.id}>
-              <img
-                src={item.variants.find((variant) => variant.includes("small"))}
-                alt={item.id}
-                style={{ width: "250px", height: "250px" }}
-                loading="lazy"
-              />
-            </ImageListItem>
-          ))}
-        </ImageList>
-      </div>
+
+      {carga ? (
+        <p className="text-center mt-10">Cargando imágenes...</p>
+      ) : (
+        <div className="mt-20">
+          {postImg.length > 0 ? (
+            <ImageList sx={{ width: "100%", height: 850 }} cols={4} gap={10}>
+              {postImg.map((item) => (
+                <ImageListItem key={item.id}>
+                  <img
+                    src={item.variants.find((variant) => variant.includes(imgTamaño))}
+                    alt={item.id}
+                    style={{ width: "250px", height: "250px", cursor: "pointer" }}
+                    onClick={() => handleOpen(item.variants)}
+                  />
+                </ImageListItem>
+              ))}
+            </ImageList>
+          ) : (
+            <p className="text-center">No hay imágenes disponibles</p>
+          )}
+        </div>
+      )}
+
+      <Dialog fullScreen open={open} onClose={handleClose} TransitionComponent={Transition}>
+        <AppBar >
+          <Toolbar>
+            <IconButton edge="start" color="inherit" onClick={handleClose} aria-label="close">
+              <CloseIcon />
+            </IconButton>
+            <FormControl sx={{ m: 1, minWidth: 120 }} size="small">
+          <InputLabel id="select-label">Tamaño</InputLabel>
+          <Select labelId="select-label" id="select" value={imgTamaño} label="Tamaño" onChange={seleccionar}>
+            <MenuItem value="public">750x750</MenuItem>
+            <MenuItem value="medium">500x500</MenuItem>
+          </Select>
+        </FormControl>
+          </Toolbar>
+        </AppBar>
+
+        <DialogContent>
+          {imgSeleccionada ? (
+            <img src={imgSeleccionada} alt="Vista seleccionada" style={{ width: "500px", height: "500px" }} />
+          ) : (
+            <p className="text-center">No hay imagen seleccionada</p>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+
+
+
+
+
 // const itemData = [
 //   {
 //     img: 'https://images.unsplash.com/photo-1551963831-b3b1ca40c98e',
