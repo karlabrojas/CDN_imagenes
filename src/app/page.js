@@ -25,10 +25,18 @@ export default function Home() {
   const [imgTamaño, setImgTamaño] = useState("medium");
   const [carga, setCarga] = useState(true);
   const [open, setOpen] = useState(false);
+  const [selectedVariants, setSelectedVariants] = useState([]);
 
   useEffect(() => {
     verImage();
   }, []);
+
+  useEffect(() => {
+    if (selectedVariants.length > 0) {
+      const newVariant = selectedVariants.find((variant) => variant.includes(imgTamaño)) || selectedVariants[0];
+      setImgSeleccionada(newVariant);
+    }
+  }, [imgTamaño]); 
 
   const verImage = async () => {
     try {
@@ -46,6 +54,7 @@ export default function Home() {
   };
 
   const uploadImage = async (files) => {
+    if (!files) return;
 
     const formData = new FormData();
     formData.append("file", files[0]);
@@ -54,14 +63,18 @@ export default function Home() {
     verImage();
   };
 
-  const handleOpen = (imgsrc) => {
-    setImgSeleccionada(imgsrc);
+  const handleOpen = (variants) => {
+    if (!variants || variants.length === 0) return;
+    setSelectedVariants(variants);
+    const selectedVariant = variants.find((variant) => variant.includes(imgTamaño)) || variants[0];
+    setImgSeleccionada(selectedVariant);
     setOpen(true);
   };
 
   const handleClose = () => {
     setOpen(false);
     setImgSeleccionada("");
+    setSelectedVariants([]);
   };
 
   const Transition = React.forwardRef(function Transition(props, ref) {
@@ -80,17 +93,6 @@ export default function Home() {
     width: 1,
   });
 
-  const getImageSize = (size) => {
-    switch (size) {
-      case "public":
-        return { width: "750px", height: "750px" };
-      case "medium":
-        return { width: "500px", height: "500px" };
-      default:
-        return { width: "500px", height: "500px" };
-    }
-  };
-
   return (
     <div>
       <div className="mt-5 bg-teal-400 h-20 content-center">
@@ -107,7 +109,7 @@ export default function Home() {
       </div>
 
       {carga ? (
-        <Alert severity="info">Cargando imágenes</Alert>
+        <Alert severity="info">Cargando imágenes...</Alert>
       ) : (
         <div className="mt-20 flex justify-center content-center">
           {postImg.length > 0 ? (
@@ -118,7 +120,7 @@ export default function Home() {
                     src={item.variants.find((variant) => variant.includes("small"))}
                     alt={item.id}
                     style={{ width: "250px", height: "250px", cursor: "pointer" }}
-                    onClick={() => handleOpen(item.variants.find((variant) => variant.includes(imgTamaño)))}
+                    onClick={() => handleOpen(item.variants)}
                   />
                 </ImageListItem>
               ))}
@@ -129,7 +131,7 @@ export default function Home() {
         </div>
       )}
 
-      <Dialog fullScreen open={open} onClose={handleClose}>
+      <Dialog fullScreen open={open} onClose={handleClose} TransitionComponent={Transition}>
         <AppBar>
           <Toolbar>
             <IconButton edge="start" color="inherit" onClick={handleClose} aria-label="close">
@@ -140,17 +142,18 @@ export default function Home() {
               <Select labelId="select-label" id="select" value={imgTamaño} label="Tamaño" onChange={seleccionar}>
                 <MenuItem value={"public"}>750x750</MenuItem>
                 <MenuItem value={"medium"}>500x500</MenuItem>
+                <MenuItem value={"small"}>250x250</MenuItem>
               </Select>
             </FormControl>
           </Toolbar>
         </AppBar>
 
         <DialogContent sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-          <img
-            src={imgSeleccionada || null}
-            alt="Vista seleccionada"
-            style={getImageSize(imgTamaño)} // Aquí aplicamos el tamaño dinámico
-          />
+          {imgSeleccionada ? (
+            <img src={imgSeleccionada} alt="Vista seleccionada" style={{ maxWidth: "100%", height: "auto" }} />
+          ) : (
+            <p className="text-center">No hay imagen seleccionada</p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
